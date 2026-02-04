@@ -203,7 +203,7 @@ export default function Sidebar({
         {!isCollapsed ? (
           <div className="text-xs text-gray-400 text-center">
             <p>Version {packageJson.version}</p>
-            <p className="mt-1">© 2025 Nomion</p>
+            <p className="mt-1">© 2026 Nomion</p>
           </div>
         ) : (
           <div className="text-xs text-gray-400 text-center" title={`Version ${packageJson.version}`}>
