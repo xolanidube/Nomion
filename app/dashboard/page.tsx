@@ -222,7 +222,7 @@ export default function Home() {
 
           {currentView === 'customrules' && <CustomRuleBuilder userId={userId} />}
 
-          {currentView === 'integrations' && <Integrations userId={userId} />}
+          {currentView === 'integrations' && <Integrations userId={userId} apiUrl={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5205'} />}
         </div>
       </main>
     </div>
