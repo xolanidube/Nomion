@@ -49,6 +49,10 @@ export default function Integrations({ userId, apiUrl }: IntegrationsProps) {
   }, [userId])
 
   const fetchIntegrations = async () => {
+    if (!userId) {
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       const response = await fetch(`${apiUrl}/api/integrations?userId=${userId}`)

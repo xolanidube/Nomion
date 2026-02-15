@@ -117,6 +117,10 @@ export function CustomRuleBuilder({ userId }: CustomRuleBuilderProps) {
   }, [userId]);
 
   const fetchRules = async () => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/customrules/user/${userId}`);
