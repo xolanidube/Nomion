@@ -558,12 +558,8 @@ export class ApiClient {
     return response.json()
   }
 
-  async getValidationHistory(token: string, limit = 50): Promise<ValidationHistoryItem[]> {
-    const response = await fetch(`${this.baseUrl}/validation/history?limit=${limit}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
+  async getValidationHistory(limit = 50): Promise<ValidationHistoryItem[]> {
+    const response = await fetch(`${this.baseUrl}/validation/history?limit=${limit}`)
 
     if (!response.ok) {
       const error = await response.json()

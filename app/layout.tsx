@@ -2,9 +2,15 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Nomion',
+  title: 'Nomion - RPA Quality Gate | Validate Blue Prism, UiPath, Power Automate',
   description:
-    'Cross-platform automation validation. Validate digital workers against a configurable rulebook before release.',
+    'Ship automation with confidence. Validate your RPA releases against 560+ best practice rules for Blue Prism, UiPath, and Power Automate in under 10ms.',
+  keywords: 'RPA validation, Blue Prism, UiPath, Power Automate, automation testing, quality gate, CoE tools',
+  openGraph: {
+    title: 'Nomion - RPA Quality Gate',
+    description: 'Validate your automation releases against 560+ rules before production.',
+    type: 'website',
+  },
 }
 
 export default function RootLayout({

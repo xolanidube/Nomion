@@ -17,17 +17,7 @@ export default function History() {
     setLoading(true)
     setError(null)
     try {
-      // Get access token from localStorage
-      const accessToken = localStorage.getItem('accessToken')
-      if (!accessToken) {
-        setError('Not authenticated. Please log in.')
-        setHistory([])
-        setLoading(false)
-        return
-      }
-
-      // Load history from API
-      const historyData = await apiClient.getValidationHistory(accessToken)
+      const historyData = await apiClient.getValidationHistory()
       setHistory(historyData)
     } catch (err: any) {
       console.error('Failed to load history:', err)

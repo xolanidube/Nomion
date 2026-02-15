@@ -25,7 +25,7 @@ export default function FileUpload({
       setIsUploading(true)
 
       try {
-        const validExtensions = ['.bpprocess', '.bpobject', '.bprelease', '.nupkg', '.xaml', '.zip']
+        const validExtensions = ['.bpprocess', '.bpobject', '.bprelease', '.nupkg', '.xaml', '.zip', '.json']
         const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
 
         if (!validExtensions.includes(fileExtension)) {
@@ -149,7 +149,7 @@ export default function FileUpload({
                   name="file-upload"
                   type="file"
                   className="sr-only"
-                  accept=".bpprocess,.bpobject,.bprelease,.nupkg,.xaml,.zip"
+                  accept=".bpprocess,.bpobject,.bprelease,.nupkg,.xaml,.zip,.json"
                   onChange={handleFileInput}
                   disabled={isUploading}
                 />
@@ -158,7 +158,7 @@ export default function FileUpload({
 
             <p className="text-sm text-gray-600">or drag and drop</p>
             <p className="text-xs text-gray-500">
-              Blue Prism (.bpprocess, .bpobject, .bprelease), UiPath (.xaml, .nupkg), or Power Automate (.zip) files
+              Blue Prism (.bpprocess, .bpobject, .bprelease), UiPath (.xaml, .nupkg), Power Automate (.zip), or Automation Anywhere (.json) files
             </p>
           </div>
         </div>

@@ -53,6 +53,8 @@ export default function ReleaseUpload({
       }
     } catch (err: any) {
       console.error('Failed to load configurations:', err)
+      setConfigList([])
+      setSelectedConfigId(null)
     } finally {
       setLoadingConfigs(false)
     }
@@ -92,6 +94,8 @@ export default function ReleaseUpload({
         return ['.zip']
       case 'uipath':
         return ['.nupkg', '.zip']
+      case 'automationanywhere':
+        return ['.json']
       default:
         return ['.bprelease']
     }
@@ -368,6 +372,7 @@ export default function ReleaseUpload({
               <option value="blueprism">Blue Prism</option>
               <option value="powerautomate">Power Automate</option>
               <option value="uipath">UiPath</option>
+              <option value="automationanywhere">Automation Anywhere</option>
             </select>
             <p className="text-xs text-gray-500">
               Select the automation platform for your release package

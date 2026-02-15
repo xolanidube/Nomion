@@ -4,8 +4,8 @@ import { useState } from 'react'
 import packageJson from '../package.json'
 
 interface SidebarProps {
-  currentView: 'upload' | 'config' | 'history' | 'analytics'
-  onViewChange: (view: 'upload' | 'config' | 'history' | 'analytics') => void
+  currentView: 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules'
+  onViewChange: (view: 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules') => void
   isLoggedIn: boolean
   username: string
   onLogout: () => void
@@ -79,6 +79,34 @@ export default function Sidebar({
             strokeLinejoin="round"
             strokeWidth={2}
             d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'customrules' as const,
+      label: 'Custom Rules',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'integrations' as const,
+      label: 'Integrations',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
           />
         </svg>
       ),
