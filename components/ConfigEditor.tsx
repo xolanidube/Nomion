@@ -356,21 +356,51 @@ export default function ConfigEditor() {
     )
   }
 
+  // Get tweakable properties (excluding metadata-like fields)
+  const METADATA_KEYS = ['Active', 'Category', 'Description', 'Severity', 'Error Message']
+
+  const getTweakableProps = (rule: any) => {
+    return Object.entries(rule).filter(([key]) => !METADATA_KEYS.includes(key))
+  }
+
+  // Get a human-readable preview of a property value
+  const getPropertyPreview = (value: any): string => {
+    if (Array.isArray(value)) return value.slice(0, 3).join(', ') + (value.length > 3 ? ` +${value.length - 3} more` : '')
+    if (typeof value === 'object' && value !== null) return Object.keys(value).length + ' properties'
+    if (typeof value === 'number') return String(value)
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+    if (typeof value === 'string') return value.length > 40 ? value.slice(0, 40) + '...' : value
+    return String(value)
+  }
+
   // Helper function to render dynamic form fields based on rule properties
   const renderRuleField = (key: string, value: any) => {
     if (key === 'Active' || key === 'Category') return null // Handle separately
 
+    const isMetadata = key === 'Description' || key === 'Error Message' || key === 'Severity'
+
     if (Array.isArray(value)) {
       return (
         <div key={key} className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">{key}</label>
+          <label className="block text-sm font-medium text-gray-700">
+            {key}
+            <span className="ml-2 text-xs text-gray-400 font-normal">({value.length} items)</span>
+          </label>
+          <div className="flex flex-wrap gap-1 mb-2">
+            {value.map((item, i) => (
+              <span key={i} className="px-2 py-0.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                {String(item)}
+              </span>
+            ))}
+          </div>
           <textarea
             value={value.join(', ')}
             onChange={(e) => handleRuleFieldChange(key, e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
-            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent text-sm"
+            rows={2}
             placeholder="Comma-separated values"
           />
+          <p className="text-xs text-gray-400">Edit comma-separated values above</p>
         </div>
       )
     }
@@ -391,14 +421,17 @@ export default function ConfigEditor() {
 
     if (typeof value === 'boolean') {
       return (
-        <div key={key} className="flex items-center space-x-3">
-          <input
-            type="checkbox"
-            checked={value}
-            onChange={(e) => handleRuleFieldChange(key, e.target.checked)}
-            className="w-4 h-4 text-blueprism-blue border-gray-300 rounded focus:ring-blueprism-blue"
-          />
+        <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
           <label className="text-sm font-medium text-gray-700">{key}</label>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={value}
+              onChange={(e) => handleRuleFieldChange(key, e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blueprism-blue peer-focus:ring-opacity-20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blueprism-blue"></div>
+          </label>
         </div>
       )
     }
@@ -406,7 +439,10 @@ export default function ConfigEditor() {
     if (typeof value === 'object' && value !== null) {
       return (
         <div key={key} className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">{key}</label>
+          <label className="block text-sm font-medium text-gray-700">
+            {key}
+            <span className="ml-2 text-xs text-gray-400 font-normal">(object)</span>
+          </label>
           <textarea
             value={JSON.stringify(value, null, 2)}
             onChange={(e) => {
@@ -424,12 +460,21 @@ export default function ConfigEditor() {
     return (
       <div key={key} className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">{key}</label>
-        <input
-          type="text"
-          value={value || ''}
-          onChange={(e) => handleRuleFieldChange(key, e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
-        />
+        {isMetadata && key === 'Description' ? (
+          <textarea
+            value={value || ''}
+            onChange={(e) => handleRuleFieldChange(key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent text-sm"
+            rows={2}
+          />
+        ) : (
+          <input
+            type="text"
+            value={value || ''}
+            onChange={(e) => handleRuleFieldChange(key, e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
+          />
+        )}
       </div>
     )
   }
@@ -682,11 +727,14 @@ export default function ConfigEditor() {
                 {Object.entries(group.Rules || {}).map(([ruleKey, rule]: [string, any]) => {
                   const ruleId = `${groupKey}:${ruleKey}`
                   const isExpanded = expandedRule === ruleId
+                  const tweakableProps = getTweakableProps(rule)
 
                   return (
                     <div
                       key={ruleKey}
-                      className="border border-gray-200 rounded-lg overflow-hidden"
+                      className={`border rounded-lg overflow-hidden transition-all ${
+                        isExpanded ? 'border-blueprism-blue shadow-md' : 'border-gray-200'
+                      }`}
                     >
                       {/* Rule Header - Clickable */}
                       <div
@@ -695,10 +743,10 @@ export default function ConfigEditor() {
                         }`}
                         onClick={() => handleRuleClick(groupKey, ruleKey)}
                       >
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-3">
                             <svg
-                              className={`w-5 h-5 text-gray-500 transition-transform ${
+                              className={`w-5 h-5 flex-shrink-0 text-gray-500 transition-transform ${
                                 isExpanded ? 'rotate-90' : ''
                               }`}
                               fill="none"
@@ -724,10 +772,46 @@ export default function ConfigEditor() {
                             >
                               {rule.Severity || 'Info'}
                             </span>
+                            {tweakableProps.length > 0 && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200 rounded-full">
+                                {tweakableProps.length} configurable {tweakableProps.length === 1 ? 'property' : 'properties'}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-gray-600 mt-1 ml-8">{rule.Description}</p>
+
+                          {/* Property Preview Tags - show what can be tweaked */}
+                          {!isExpanded && tweakableProps.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2 ml-8">
+                              {tweakableProps.slice(0, 4).map(([key, value]) => (
+                                <span
+                                  key={key}
+                                  className="inline-flex items-center px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded border border-gray-200"
+                                  title={`${key}: ${getPropertyPreview(value)}`}
+                                >
+                                  <svg className="w-3 h-3 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  <span className="font-medium">{key}:</span>
+                                  <span className="ml-1 text-gray-500 max-w-[120px] truncate">{getPropertyPreview(value)}</span>
+                                </span>
+                              ))}
+                              {tweakableProps.length > 4 && (
+                                <span className="inline-flex items-center px-2 py-0.5 text-xs text-blueprism-blue font-medium">
+                                  +{tweakableProps.length - 4} more
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Click hint */}
+                          {!isExpanded && tweakableProps.length > 0 && (
+                            <p className="text-xs text-blueprism-blue mt-1.5 ml-8 opacity-70">
+                              Click to expand and configure properties
+                            </p>
+                          )}
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer ml-4" onClick={(e) => e.stopPropagation()}>
+                        <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={rule.Active || false}
@@ -744,15 +828,67 @@ export default function ConfigEditor() {
                       {/* Expandable Configuration Form */}
                       {isExpanded && editingRule && (
                         <div className="p-6 bg-white border-t border-gray-200">
-                          <h5 className="text-lg font-semibold text-gray-900 mb-4">
-                            Configure {ruleKey}
-                          </h5>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                            {Object.entries(editingRule)
-                              .filter(([key]) => key !== 'Active' && key !== 'Category')
-                              .map(([key, value]) => renderRuleField(key, value))}
+                          {/* Rule Metadata Section */}
+                          <div className="mb-6">
+                            <h5 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                              Rule Settings
+                            </h5>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Severity */}
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">Severity</label>
+                                <select
+                                  value={editingRule.Severity || 'Info'}
+                                  onChange={(e) => handleRuleFieldChange('Severity', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
+                                >
+                                  <option value="Error">Error</option>
+                                  <option value="Warning">Warning</option>
+                                  <option value="Info">Info</option>
+                                </select>
+                              </div>
+                              {/* Error Message */}
+                              <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">Error Message</label>
+                                <input
+                                  type="text"
+                                  value={editingRule['Error Message'] || ''}
+                                  onChange={(e) => handleRuleFieldChange('Error Message', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent text-sm"
+                                />
+                              </div>
+                              {/* Description */}
+                              <div className="space-y-2 md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700">Description</label>
+                                <textarea
+                                  value={editingRule.Description || ''}
+                                  onChange={(e) => handleRuleFieldChange('Description', e.target.value)}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent text-sm"
+                                  rows={2}
+                                />
+                              </div>
+                            </div>
                           </div>
+
+                          {/* Configurable Properties Section */}
+                          {tweakableProps.length > 0 && (
+                            <div className="mb-6">
+                              <h5 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                                Configurable Properties
+                                <span className="ml-2 text-xs font-normal normal-case text-gray-400">
+                                  ({tweakableProps.length} {tweakableProps.length === 1 ? 'property' : 'properties'} you can customize)
+                                </span>
+                              </h5>
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                <p className="text-xs text-blue-700">
+                                  These properties control how this rule validates your automation artifacts. Modify them to match your team&apos;s conventions.
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {tweakableProps.map(([key, value]) => renderRuleField(key, value))}
+                              </div>
+                            </div>
+                          )}
 
                           {/* Action Buttons */}
                           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
