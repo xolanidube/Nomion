@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
-import { apiClient, ReleaseValidationReport, ReleaseInfo, ArtifactValidationResult, ConfigInfo } from '@/lib/api'
+import { Fragment, useState, useCallback, useRef, useEffect } from 'react'
+import { apiClient, ReleaseValidationReport, ReleaseInfo, ArtifactValidationResult, ValidationResult, ConfigInfo } from '@/lib/api'
 
 interface ReleaseUploadProps {
   onFileUploaded: (fileData: { fileId: string; fileName: string; fileType: string }) => void
@@ -26,6 +26,16 @@ export default function ReleaseUpload({
   const [progressMessage, setProgressMessage] = useState<string | null>(null)
   const [progressStatus, setProgressStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle')
   const progressTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Artifact detail view state
+  const [selectedArtifactResult, setSelectedArtifactResult] = useState<ArtifactValidationResult | null>(null)
+  const [detailFilterSeverity, setDetailFilterSeverity] = useState<string>('all')
+  const [detailFilterStatus, setDetailFilterStatus] = useState<string>('all')
+  const [detailSearchQuery, setDetailSearchQuery] = useState<string>('')
+  const [detailExpandedRules, setDetailExpandedRules] = useState<Record<string, boolean>>({})
+  type SortColumn = 'ruleId' | 'severity' | 'status' | 'occurrences'
+  const [detailSortBy, setDetailSortBy] = useState<SortColumn>('ruleId')
+  const [detailSortOrder, setDetailSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Config management
   const [configList, setConfigList] = useState<ConfigInfo[]>([])
@@ -277,6 +287,72 @@ export default function ReleaseUpload({
     return []
   }
 
+  const handleViewResults = (artifactId: string) => {
+    const result = artifactValidations.get(artifactId)
+    if (result) {
+      setSelectedArtifactResult(result)
+      setDetailFilterSeverity('all')
+      setDetailFilterStatus('all')
+      setDetailSearchQuery('')
+      setDetailExpandedRules({})
+      setDetailSortBy('ruleId')
+      setDetailSortOrder('asc')
+    }
+  }
+
+  const handleBackToArtifacts = () => {
+    setSelectedArtifactResult(null)
+  }
+
+  const toggleDetailRule = (ruleId: string) => {
+    setDetailExpandedRules((prev) => ({
+      ...prev,
+      [ruleId]: !prev[ruleId],
+    }))
+  }
+
+  const handleDetailSort = (column: SortColumn) => {
+    if (detailSortBy === column) {
+      setDetailSortOrder(detailSortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setDetailSortBy(column)
+      setDetailSortOrder('asc')
+    }
+  }
+
+  const getFilteredSortedResults = (results: ValidationResult[]) => {
+    return results
+      .filter((result) => {
+        if (detailFilterSeverity !== 'all' && result.severity.toLowerCase() !== detailFilterSeverity) return false
+        if (detailFilterStatus === 'passed' && !result.passed) return false
+        if (detailFilterStatus === 'failed' && result.passed) return false
+        if (detailSearchQuery) {
+          const query = detailSearchQuery.toLowerCase()
+          return (
+            result.ruleId.toLowerCase().includes(query) ||
+            result.ruleName.toLowerCase().includes(query) ||
+            result.description.toLowerCase().includes(query) ||
+            result.messages.some((msg) =>
+              msg.message.toLowerCase().includes(query) ||
+              msg.location?.pageName?.toLowerCase().includes(query) ||
+              msg.location?.stageName?.toLowerCase().includes(query)
+            )
+          )
+        }
+        return true
+      })
+      .sort((a, b) => {
+        let comparison = 0
+        if (detailSortBy === 'ruleId') comparison = a.ruleId.localeCompare(b.ruleId)
+        else if (detailSortBy === 'severity') {
+          const order = { Error: 0, Warning: 1, Info: 2 }
+          comparison = (order[a.severity as keyof typeof order] ?? 3) - (order[b.severity as keyof typeof order] ?? 3)
+        } else if (detailSortBy === 'status') comparison = (a.passed ? 1 : 0) - (b.passed ? 1 : 0)
+        else if (detailSortBy === 'occurrences') comparison = (a.occurrences ?? 0) - (b.occurrences ?? 0)
+        return detailSortOrder === 'asc' ? comparison : -comparison
+      })
+  }
+
   const progressPercentage = Math.min(Math.max(progress, 0), 100)
   const progressBarColor =
     progressStatus === 'error'
@@ -501,7 +577,253 @@ export default function ReleaseUpload({
             </div>
           </div>
 
-          {releaseInfo && (
+          {releaseInfo && selectedArtifactResult && (
+            <div className="space-y-6">
+              {/* Back Button */}
+              <button
+                onClick={handleBackToArtifacts}
+                className="flex items-center space-x-2 text-blueprism-blue hover:text-blueprism-darkblue font-medium transition-colors"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back to Artifacts</span>
+              </button>
+
+              {/* Artifact Summary Card */}
+              {(() => {
+                const detailPassRate = selectedArtifactResult.summary.totalRules === 0
+                  ? 0
+                  : Math.round((selectedArtifactResult.summary.passed / selectedArtifactResult.summary.totalRules) * 100)
+                const filteredResults = getFilteredSortedResults(selectedArtifactResult.results)
+
+                return (
+                  <>
+                    <div className="bg-gradient-to-r from-blueprism-blue to-blueprism-darkblue rounded-lg p-6 text-white">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-sm opacity-90">Artifact</p>
+                          <p className="text-lg font-bold truncate" title={selectedArtifactResult.artifactName}>{selectedArtifactResult.artifactName}</p>
+                          <p className="text-xs opacity-75">{selectedArtifactResult.artifactType}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm opacity-90">Total Rules</p>
+                          <p className="text-lg font-bold">{selectedArtifactResult.summary.totalRules}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm opacity-90">Pass Rate</p>
+                          <p className="text-lg font-bold">{detailPassRate}%</p>
+                        </div>
+                        <div>
+                          <p className="text-sm opacity-90">Duration</p>
+                          <p className="text-lg font-bold">{selectedArtifactResult.summary.durationMs}ms</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 grid grid-cols-3 gap-4">
+                        <div className="bg-white bg-opacity-20 rounded p-3 text-center">
+                          <p className="text-2xl font-bold">{selectedArtifactResult.summary.passed}</p>
+                          <p className="text-sm">Passed</p>
+                        </div>
+                        <div className="bg-white bg-opacity-20 rounded p-3 text-center">
+                          <p className="text-2xl font-bold">{selectedArtifactResult.summary.failed}</p>
+                          <p className="text-sm">Failed</p>
+                        </div>
+                        <div className="bg-white bg-opacity-20 rounded p-3 text-center">
+                          <p className="text-2xl font-bold">{selectedArtifactResult.summary.warnings}</p>
+                          <p className="text-sm">Warnings</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex-1 min-w-[300px]">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                        <input
+                          type="text"
+                          value={detailSearchQuery}
+                          onChange={(e) => setDetailSearchQuery(e.target.value)}
+                          placeholder="Search by rule ID, name, description, or location..."
+                          className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                        <select
+                          value={detailFilterStatus}
+                          onChange={(e) => setDetailFilterStatus(e.target.value)}
+                          className="border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
+                        >
+                          <option value="all">All</option>
+                          <option value="passed">Passed Only</option>
+                          <option value="failed">Failed Only</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Severity</label>
+                        <select
+                          value={detailFilterSeverity}
+                          onChange={(e) => setDetailFilterSeverity(e.target.value)}
+                          className="border border-gray-300 rounded-md px-4 py-2 focus:ring-2 focus:ring-blueprism-blue focus:border-transparent"
+                        >
+                          <option value="all">All</option>
+                          <option value="error">Error</option>
+                          <option value="warning">Warning</option>
+                          <option value="info">Info</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Results Table */}
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleDetailSort('status')}>
+                              <div className="flex items-center space-x-1">
+                                <span>Status</span>
+                                {detailSortBy === 'status' && <span>{detailSortOrder === 'asc' ? '\u2191' : '\u2193'}</span>}
+                              </div>
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleDetailSort('ruleId')}>
+                              <div className="flex items-center space-x-1">
+                                <span>Rule ID</span>
+                                {detailSortBy === 'ruleId' && <span>{detailSortOrder === 'asc' ? '\u2191' : '\u2193'}</span>}
+                              </div>
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleDetailSort('severity')}>
+                              <div className="flex items-center space-x-1">
+                                <span>Severity</span>
+                                {detailSortBy === 'severity' && <span>{detailSortOrder === 'asc' ? '\u2191' : '\u2193'}</span>}
+                              </div>
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => handleDetailSort('occurrences')}>
+                              <div className="flex items-center space-x-1">
+                                <span>Occurrences</span>
+                                {detailSortBy === 'occurrences' && <span>{detailSortOrder === 'asc' ? '\u2191' : '\u2193'}</span>}
+                              </div>
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {filteredResults.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                                No results match the selected filters
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredResults.map((result, index) => (
+                              <Fragment key={`${result.ruleId}-${index}`}>
+                                <tr
+                                  className={`cursor-pointer ${result.passed ? 'bg-green-50 hover:bg-green-100' : 'bg-red-50 hover:bg-red-100'} transition-colors`}
+                                  onClick={() => { if (result.messages.length > 0) toggleDetailRule(result.ruleId) }}
+                                >
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="flex items-center space-x-3">
+                                      <span className="text-gray-500">
+                                        {result.messages.length > 0 ? (detailExpandedRules[result.ruleId] ? '\u2212' : '+') : '\u2013'}
+                                      </span>
+                                      {result.passed ? (
+                                        <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                      )}
+                                      <span className="ml-2 text-sm font-medium text-gray-900">{result.passed ? 'Pass' : 'Fail'}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-gray-900">{result.ruleId}</div>
+                                    <div className="text-xs text-gray-500">{result.ruleName}</div>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                      result.severity.toLowerCase() === 'error' ? 'bg-red-100 text-red-800'
+                                      : result.severity.toLowerCase() === 'warning' ? 'bg-yellow-100 text-yellow-800'
+                                      : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {result.severity}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-semibold text-gray-900">{result.occurrences}</div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="text-sm text-gray-900 max-w-md">{result.description}</div>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    {result.messages.length === 0 ? (
+                                      <div className="text-sm text-gray-600">Rule passed</div>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        <div className="text-sm text-gray-700">
+                                          {result.messages[0]?.message ?? 'See occurrences for details'}
+                                          {result.messages.length > 1 && (
+                                            <span className="ml-1 text-xs text-gray-500">(+{result.messages.length - 1} more)</span>
+                                          )}
+                                        </div>
+                                        <div className="text-xs text-blueprism-blue">
+                                          {detailExpandedRules[result.ruleId] ? 'Click row to hide occurrences' : 'Click row to view detailed occurrences'}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                                {result.messages.length > 0 && detailExpandedRules[result.ruleId] && (
+                                  <tr className="bg-white">
+                                    <td colSpan={6} className="px-6 pb-6">
+                                      <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                          <thead className="bg-gray-100">
+                                            <tr>
+                                              <th className="px-3 py-2 text-left font-medium text-gray-600 uppercase tracking-wider text-xs">Page</th>
+                                              <th className="px-3 py-2 text-left font-medium text-gray-600 uppercase tracking-wider text-xs">Stage</th>
+                                              <th className="px-3 py-2 text-left font-medium text-gray-600 uppercase tracking-wider text-xs">Line</th>
+                                              <th className="px-3 py-2 text-left font-medium text-gray-600 uppercase tracking-wider text-xs">Message</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="bg-white divide-y divide-gray-200">
+                                            {result.messages.map((msg, msgIndex) => (
+                                              <tr key={msgIndex}>
+                                                <td className="px-3 py-2 text-gray-700">{msg.location?.pageName ?? 'N/A'}</td>
+                                                <td className="px-3 py-2 text-gray-700">{msg.location?.stageName ?? 'N/A'}</td>
+                                                <td className="px-3 py-2 text-gray-700">{msg.location?.lineNumber ?? '\u2014'}</td>
+                                                <td className="px-3 py-2">
+                                                  <div className="text-sm text-gray-700">{msg.message}</div>
+                                                  {msg.detail && <div className="text-xs text-gray-500 mt-1">{msg.detail}</div>}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Results Count */}
+                    <div className="text-sm text-gray-600">
+                      Showing {filteredResults.length} of {selectedArtifactResult.results.length} results
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
+          )}
+
+          {releaseInfo && !selectedArtifactResult && (
             <>
               {/* Summary Card */}
               <div className="bg-blueprism-lightblue border border-blueprism-blue rounded-lg p-4">
@@ -769,40 +1091,54 @@ export default function ReleaseUpload({
                           )}
                         </div>
 
-                        {/* Individual Validate Button */}
-                        <button
-                          onClick={() => handleValidateArtifact(artifact.artifactId)}
-                          disabled={isValidating}
-                          className="ml-4 bg-blueprism-blue text-white px-4 py-2 rounded hover:bg-blueprism-darkblue transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2 text-sm"
-                        >
-                          {isValidating ? (
-                            <>
-                              <svg
-                                className="animate-spin h-4 w-4"
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                              >
-                                <circle
-                                  className="opacity-25"
-                                  cx="12"
-                                  cy="12"
-                                  r="10"
-                                  stroke="currentColor"
-                                  strokeWidth="4"
-                                ></circle>
-                                <path
-                                  className="opacity-75"
-                                  fill="currentColor"
-                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                ></path>
+                        {/* Validate + View Results Buttons */}
+                        <div className="ml-4 flex flex-col space-y-2">
+                          <button
+                            onClick={() => handleValidateArtifact(artifact.artifactId)}
+                            disabled={isValidating}
+                            className="bg-blueprism-blue text-white px-4 py-2 rounded hover:bg-blueprism-darkblue transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2 text-sm"
+                          >
+                            {isValidating ? (
+                              <>
+                                <svg
+                                  className="animate-spin h-4 w-4"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <circle
+                                    className="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    strokeWidth="4"
+                                  ></circle>
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                  ></path>
+                                </svg>
+                                <span>Validating...</span>
+                              </>
+                            ) : (
+                              <span>Validate</span>
+                            )}
+                          </button>
+                          {validation && (
+                            <button
+                              onClick={() => handleViewResults(artifact.artifactId)}
+                              className="bg-white border border-blueprism-blue text-blueprism-blue px-4 py-2 rounded hover:bg-blueprism-lightblue transition-colors flex items-center space-x-2 text-sm"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                               </svg>
-                              <span>Validating...</span>
-                            </>
-                          ) : (
-                            <span>Validate</span>
+                              <span>View Results</span>
+                            </button>
                           )}
-                        </button>
+                        </div>
                       </div>
                     </div>
                   )
