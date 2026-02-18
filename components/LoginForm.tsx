@@ -146,8 +146,25 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
             </button>
           </form>
 
-          {/* Registration Link */}
+          {/* SSO Login */}
           <div className="mt-6 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={() => {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5205'
+                window.location.href = `${apiUrl}/api/sso/saml/login?returnUrl=${encodeURIComponent(window.location.origin + '/dashboard')}`
+              }}
+              className="w-full flex items-center justify-center space-x-2 py-3 px-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>Sign in with SSO</span>
+            </button>
+          </div>
+
+          {/* Registration Link */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600 text-center">
               Don&apos;t have an account?{' '}
               <a

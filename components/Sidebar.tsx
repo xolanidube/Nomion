@@ -3,12 +3,30 @@
 import { useState } from 'react'
 import packageJson from '../package.json'
 
+type ViewType = 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules' | 'approvals' | 'users'
+
 interface SidebarProps {
-  currentView: 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules'
-  onViewChange: (view: 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules') => void
+  currentView: ViewType
+  onViewChange: (view: ViewType) => void
   isLoggedIn: boolean
   username: string
   onLogout: () => void
+  userPlan?: string
+  userRole?: string
+}
+
+const planColors: Record<string, string> = {
+  free: 'bg-green-600',
+  team: 'bg-blue-600',
+  business: 'bg-purple-600',
+  enterprise: 'bg-yellow-600',
+}
+
+const planLabels: Record<string, string> = {
+  free: 'Free',
+  team: 'Team',
+  business: 'Business',
+  enterprise: 'Enterprise',
 }
 
 export default function Sidebar({
@@ -17,12 +35,14 @@ export default function Sidebar({
   isLoggedIn,
   username,
   onLogout,
+  userPlan = 'free',
+  userRole = 'user',
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
 
-  const menuItems = [
+  const menuItems: { id: ViewType; label: string; icon: JSX.Element; requiredRole?: string }[] = [
     {
-      id: 'upload' as const,
+      id: 'upload',
       label: 'Validate',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +56,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 'analytics' as const,
+      id: 'analytics',
       label: 'Analytics',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +70,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 'config' as const,
+      id: 'config',
       label: 'Configure Rules',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,7 +90,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 'history' as const,
+      id: 'history',
       label: 'History',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +104,21 @@ export default function Sidebar({
       ),
     },
     {
-      id: 'customrules' as const,
+      id: 'approvals',
+      label: 'Approvals',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+          />
+        </svg>
+      ),
+    },
+    {
+      id: 'customrules',
       label: 'Custom Rules',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -98,7 +132,7 @@ export default function Sidebar({
       ),
     },
     {
-      id: 'integrations' as const,
+      id: 'integrations',
       label: 'Integrations',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -111,7 +145,27 @@ export default function Sidebar({
         </svg>
       ),
     },
+    {
+      id: 'users',
+      label: 'Users',
+      requiredRole: 'admin',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+          />
+        </svg>
+      ),
+    },
   ]
+
+  const visibleItems = menuItems.filter((item) => {
+    if (!item.requiredRole) return true
+    return userRole === 'admin' || userRole === 'owner'
+  })
 
   return (
     <aside
@@ -159,7 +213,7 @@ export default function Sidebar({
 
       {/* Navigation */}
       <nav className="flex-1 p-2 space-y-1">
-        {menuItems.map((item) => (
+        {visibleItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onViewChange(item.id)}
@@ -189,9 +243,26 @@ export default function Sidebar({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{username}</p>
-                  <p className="text-xs text-gray-400">Logged in</p>
+                  <div className="flex items-center space-x-2 mt-0.5">
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${planColors[userPlan] || planColors.free} text-white`}>
+                      {planLabels[userPlan] || 'Free'}
+                    </span>
+                    {(userRole === 'admin' || userRole === 'owner') && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-yellow-600 text-white">
+                        {userRole === 'owner' ? 'Owner' : 'Admin'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+              {userPlan === 'free' && (
+                <a
+                  href="/#pricing"
+                  className="block text-center text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Upgrade Plan
+                </a>
+              )}
               <button
                 onClick={onLogout}
                 className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm font-medium"
@@ -208,20 +279,25 @@ export default function Sidebar({
               </button>
             </div>
           ) : (
-            <button
-              onClick={onLogout}
-              className="w-full flex items-center justify-center p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-              title="Logout"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-            </button>
+            <div className="space-y-2">
+              <div className={`w-full text-center text-[9px] font-bold px-1 py-0.5 rounded ${planColors[userPlan] || planColors.free} text-white`}>
+                {planLabels[userPlan]?.[0] || 'F'}
+              </div>
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center justify-center p-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                title="Logout"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -231,7 +307,7 @@ export default function Sidebar({
         {!isCollapsed ? (
           <div className="text-xs text-gray-400 text-center">
             <p>Version {packageJson.version}</p>
-            <p className="mt-1">© 2026 Nomion</p>
+            <p className="mt-1">&copy; 2026 Nomion</p>
           </div>
         ) : (
           <div className="text-xs text-gray-400 text-center" title={`Version ${packageJson.version}`}>

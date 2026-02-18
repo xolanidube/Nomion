@@ -138,7 +138,7 @@ const pricingTiers = [
     features: [
       '50 validations per month',
       '1 RPA platform',
-      'Basic validation rules',
+      'Core validation rules',
       'Community support',
       'Validation history (7 days)',
     ],
@@ -154,7 +154,7 @@ const pricingTiers = [
     features: [
       'Unlimited validations',
       'All 4 RPA platforms',
-      '480+ validation rules',
+      '610+ validation rules',
       'Custom rules engine',
       'Validation history & analytics',
       'API access',
@@ -194,7 +194,7 @@ const pricingTiers = [
       'Audit logging',
       'Dedicated support & SLA',
       'On-premise deployment option',
-      'Custom integrations',
+      'Custom integrations (Slack, Teams, Jira)',
     ],
     cta: 'Contact Sales',
     ctaHref: '#demo-form',
@@ -224,11 +224,11 @@ const faqItems = [
   },
   {
     question: 'Is there a free plan?',
-    answer: 'Yes. The Free plan includes 50 validations per month on 1 platform with no credit card required. Team and Business plans include a 14-day free trial.',
+    answer: 'Yes. The Free plan includes 50 validations per month on 1 platform with core validation rules and no credit card required. Team and Business plans include a 14-day free trial with unlimited validations across all platforms.',
   },
   {
     question: 'How does enterprise pricing work?',
-    answer: 'Enterprise pricing is customized based on your team size, deployment requirements (cloud vs. on-premise), and support needs. Contact our sales team for a tailored quote.',
+    answer: 'Enterprise pricing is customized based on your team size, deployment requirements (cloud vs. on-premise), and support needs. Enterprise includes SSO/SAML authentication, role-based access control, comprehensive audit logging, and dedicated support. Contact our sales team for a tailored quote.',
   },
   {
     question: 'Is my data secure?',
