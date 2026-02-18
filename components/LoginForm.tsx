@@ -14,6 +14,7 @@ export default function LoginForm({ onLogin, trialPlan }: LoginFormProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isGuestLoading, setIsGuestLoading] = useState(false)
   const [isRegisterMode, setIsRegisterMode] = useState(!!trialPlan)
 
   const planLabel = trialPlan === 'business' ? 'Business' : trialPlan === 'team' ? 'Team' : null
@@ -75,6 +76,27 @@ export default function LoginForm({ onLogin, trialPlan }: LoginFormProps) {
       setError(err.message || (isRegisterMode ? 'Registration failed' : 'Invalid username or password'))
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleGuestLogin = async () => {
+    setError('')
+    setIsGuestLoading(true)
+
+    try {
+      const authResponse = await apiClient.guestLogin()
+
+      sessionStorage.setItem('token', authResponse.accessToken)
+      sessionStorage.setItem('refreshToken', authResponse.refreshToken)
+      sessionStorage.setItem('username', authResponse.user.username)
+      sessionStorage.setItem('userId', authResponse.user.userId)
+      sessionStorage.setItem('user', JSON.stringify(authResponse.user))
+
+      onLogin(authResponse.user.username)
+    } catch (err: any) {
+      setError(err.message || 'Guest login failed')
+    } finally {
+      setIsGuestLoading(false)
     }
   }
 
@@ -230,6 +252,41 @@ export default function LoginForm({ onLogin, trialPlan }: LoginFormProps) {
               </button>
             </div>
           )}
+
+          {/* Guest Login */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={handleGuestLogin}
+              disabled={isLoading || isGuestLoading}
+              className="w-full flex items-center justify-center space-x-2 py-3 px-6 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors text-gray-700 font-medium disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              {isGuestLoading ? (
+                <>
+                  <svg
+                    className="animate-spin h-5 w-5 text-gray-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Entering as guest...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <span>Continue as Guest</span>
+                </>
+              )}
+            </button>
+            <p className="text-xs text-gray-500 text-center mt-2">
+              No account needed. Free tier limits apply.
+            </p>
+          </div>
 
           {/* Toggle Sign In / Register */}
           <div className="mt-4 pt-4 border-t border-gray-200">

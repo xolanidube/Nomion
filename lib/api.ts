@@ -495,6 +495,19 @@ export class ApiClient {
     return response.json()
   }
 
+  async guestLogin(): Promise<AuthResponse> {
+    const response = await fetch(`${this.baseUrl}/auth/guest`, {
+      method: 'POST',
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to login as guest')
+    }
+
+    return response.json()
+  }
+
   async register(request: RegisterRequest): Promise<AuthResponse> {
     const response = await fetch(`${this.baseUrl}/auth/register`, {
       method: 'POST',
