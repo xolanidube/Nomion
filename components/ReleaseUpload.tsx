@@ -2,6 +2,10 @@
 
 import { Fragment, useState, useCallback, useRef, useEffect } from 'react'
 import { apiClient, ReleaseValidationReport, ReleaseInfo, ArtifactValidationResult, ValidationResult, ConfigInfo } from '@/lib/api'
+import * as XLSX from 'xlsx'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import Papa from 'papaparse'
 
 interface ReleaseUploadProps {
   onFileUploaded: (fileData: { fileId: string; fileName: string; fileType: string }) => void
@@ -302,6 +306,93 @@ export default function ReleaseUpload({
 
   const handleBackToArtifacts = () => {
     setSelectedArtifactResult(null)
+  }
+
+  // ─── Export Helpers ──────────────────────────────────────────────────
+
+  const formatMessagesForExport = (result: ValidationResult) => {
+    if (!result.messages.length) return 'Rule passed'
+    return result.messages
+      .map((msg) => {
+        const parts: string[] = [msg.message]
+        if (msg.detail) parts.push(`Detail: ${msg.detail}`)
+        const loc: string[] = []
+        if (msg.location?.pageName) loc.push(`Page: ${msg.location.pageName}`)
+        if (msg.location?.stageName) loc.push(`Stage: ${msg.location.stageName}`)
+        if (msg.location?.lineNumber) loc.push(`Line: ${msg.location.lineNumber}`)
+        if (loc.length > 0) parts.push(loc.join(', '))
+        return parts.join(' | ')
+      })
+      .join(' | ')
+  }
+
+  const getExportRows = (results: ValidationResult[]) =>
+    results.map((r) => ({
+      'Rule ID': r.ruleId,
+      'Rule Name': r.ruleName,
+      Status: r.passed ? 'Passed' : 'Failed',
+      Severity: r.severity,
+      Occurrences: r.occurrences ?? r.messages.length,
+      Description: r.description,
+      Messages: formatMessagesForExport(r),
+    }))
+
+  const exportArtifactCSV = (art: ArtifactValidationResult) => {
+    const csv = Papa.unparse(getExportRows(art.results))
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `validation-${art.artifactName}-${Date.now()}.csv`
+    link.click()
+  }
+
+  const exportArtifactExcel = (art: ArtifactValidationResult) => {
+    const ws = XLSX.utils.json_to_sheet(getExportRows(art.results))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Validation Results')
+    const summary = [
+      ['Artifact Validation Report'],
+      ['Artifact', art.artifactName],
+      ['Type', art.artifactType],
+      ['Total Rules', art.summary.totalRules],
+      ['Passed', art.summary.passed],
+      ['Failed', art.summary.failed],
+      ['Warnings', art.summary.warnings],
+      ['Duration (ms)', art.summary.durationMs],
+    ]
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary')
+    XLSX.writeFile(wb, `validation-${art.artifactName}-${Date.now()}.xlsx`)
+  }
+
+  const exportArtifactPDF = (art: ArtifactValidationResult) => {
+    const doc = new jsPDF()
+    doc.setFontSize(18)
+    doc.setTextColor(26, 72, 140)
+    doc.text('Artifact Validation Report', 14, 20)
+    doc.setFontSize(12)
+    doc.setTextColor(0, 0, 0)
+    doc.text(`Artifact: ${art.artifactName}`, 14, 30)
+    doc.text(`Type: ${art.artifactType}`, 14, 37)
+    doc.text(`Total Rules: ${art.summary.totalRules} | Passed: ${art.summary.passed} | Failed: ${art.summary.failed}`, 14, 44)
+    const tableData = art.results.map((r) => [
+      r.ruleId,
+      r.passed ? 'Pass' : 'Fail',
+      r.severity,
+      r.occurrences ?? r.messages.length,
+      r.description.substring(0, 60) + (r.description.length > 60 ? '...' : ''),
+      formatMessagesForExport(r).substring(0, 60),
+    ])
+    autoTable(doc, {
+      startY: 50,
+      head: [['Rule ID', 'Status', 'Severity', 'Occurrences', 'Description', 'Messages']],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [26, 72, 140], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+    })
+    doc.save(`validation-${art.artifactName}-${Date.now()}.pdf`)
   }
 
   const toggleDetailRule = (ruleId: string) => {
@@ -672,6 +763,37 @@ export default function ReleaseUpload({
                           <option value="info">Info</option>
                         </select>
                       </div>
+                    </div>
+
+                    {/* Export Buttons */}
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => exportArtifactCSV(selectedArtifactResult)}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Export CSV</span>
+                      </button>
+                      <button
+                        onClick={() => exportArtifactExcel(selectedArtifactResult)}
+                        className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Export Excel</span>
+                      </button>
+                      <button
+                        onClick={() => exportArtifactPDF(selectedArtifactResult)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span>Export PDF</span>
+                      </button>
                     </div>
 
                     {/* Results Table */}
