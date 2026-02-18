@@ -584,8 +584,11 @@ export class ApiClient {
 
   // Analytics Methods
 
-  async getDashboard(): Promise<DashboardSummary> {
-    const response = await fetch(`${this.baseUrl}/analytics/dashboard`)
+  async getDashboard(platform?: string): Promise<DashboardSummary> {
+    const params = new URLSearchParams()
+    if (platform) params.append('platform', platform)
+    const qs = params.toString() ? `?${params.toString()}` : ''
+    const response = await fetch(`${this.baseUrl}/analytics/dashboard${qs}`)
 
     if (!response.ok) {
       const error = await response.json()
@@ -595,8 +598,10 @@ export class ApiClient {
     return response.json()
   }
 
-  async getTrends(days: number = 30): Promise<TrendData[]> {
-    const response = await fetch(`${this.baseUrl}/analytics/trends?days=${days}`)
+  async getTrends(days: number = 30, platform?: string): Promise<TrendData[]> {
+    const params = new URLSearchParams({ days: days.toString() })
+    if (platform) params.append('platform', platform)
+    const response = await fetch(`${this.baseUrl}/analytics/trends?${params.toString()}`)
 
     if (!response.ok) {
       const error = await response.json()
@@ -606,8 +611,10 @@ export class ApiClient {
     return response.json()
   }
 
-  async getTopViolatedRules(limit: number = 10): Promise<RuleViolationStats[]> {
-    const response = await fetch(`${this.baseUrl}/analytics/top-violated-rules?limit=${limit}`)
+  async getTopViolatedRules(platform?: string, page: number = 1, pageSize: number = 15): Promise<PaginatedRuleViolationStats> {
+    const params = new URLSearchParams({ page: page.toString(), pageSize: pageSize.toString() })
+    if (platform) params.append('platform', platform)
+    const response = await fetch(`${this.baseUrl}/analytics/top-violated-rules?${params.toString()}`)
 
     if (!response.ok) {
       const error = await response.json()
@@ -804,6 +811,16 @@ export interface RuleViolationStats {
   ruleName: string
   violationCount: number
   percentage: number
+  description: string
+  severity: string
+  applicability: string
+}
+
+export interface PaginatedRuleViolationStats {
+  items: RuleViolationStats[]
+  totalCount: number
+  page: number
+  pageSize: number
 }
 
 export interface UserStats {
