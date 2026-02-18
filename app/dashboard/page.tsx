@@ -92,6 +92,8 @@ export default function Home() {
     sessionStorage.removeItem('username')
     sessionStorage.removeItem('userId')
     sessionStorage.removeItem('token')
+    sessionStorage.removeItem('refreshToken')
+    sessionStorage.removeItem('user')
     setUploadedFile(null)
     setValidationReport(null)
   }
@@ -107,54 +109,12 @@ export default function Home() {
     setValidationReport(report)
     setReleaseValidationReport(null)
     setUsageUsed((prev) => prev + 1)
-
-    // Save to history
-    const historyItem = {
-      id: report.validationId,
-      fileName: report.fileName,
-      fileType: report.fileType,
-      timestamp: report.timestamp,
-      passed: report.summary.passed,
-      failed: report.summary.failed,
-      totalRules: report.summary.totalRules,
-    }
-
-    const existingHistory = localStorage.getItem('validation-history')
-    const history = existingHistory ? JSON.parse(existingHistory) : []
-    history.unshift(historyItem)
-
-    if (history.length > 50) {
-      history.pop()
-    }
-
-    localStorage.setItem('validation-history', JSON.stringify(history))
   }
 
   const handleReleaseValidationComplete = (report: any) => {
     setReleaseValidationReport(report)
     setValidationReport(null)
     setUsageUsed((prev) => prev + 1)
-
-    // Save to history
-    const historyItem = {
-      id: report.validationId,
-      fileName: report.fileName,
-      fileType: 'bprelease',
-      timestamp: report.timestamp,
-      passed: report.overallSummary.passed,
-      failed: report.overallSummary.failed,
-      totalRules: report.overallSummary.totalRules,
-    }
-
-    const existingHistory = localStorage.getItem('validation-history')
-    const history = existingHistory ? JSON.parse(existingHistory) : []
-    history.unshift(historyItem)
-
-    if (history.length > 50) {
-      history.pop()
-    }
-
-    localStorage.setItem('validation-history', JSON.stringify(history))
   }
 
   // Get display name for artifact type

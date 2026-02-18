@@ -82,8 +82,8 @@ export default function ConfigEditor() {
     }
 
     try {
-      // Get user from localStorage
-      const userStr = localStorage.getItem('user')
+      // Get user from sessionStorage
+      const userStr = sessionStorage.getItem('user')
       const user = userStr ? JSON.parse(userStr) : null
       if (!user?.userId) {
         setError('Not authenticated. Please log in again.')

@@ -36,10 +36,12 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
         password: password.trim(),
       })
 
-      // Store tokens in localStorage
-      localStorage.setItem('accessToken', authResponse.accessToken)
-      localStorage.setItem('refreshToken', authResponse.refreshToken)
-      localStorage.setItem('user', JSON.stringify(authResponse.user))
+      // Store tokens in sessionStorage (matches dashboard + component reads)
+      sessionStorage.setItem('token', authResponse.accessToken)
+      sessionStorage.setItem('refreshToken', authResponse.refreshToken)
+      sessionStorage.setItem('username', authResponse.user.username)
+      sessionStorage.setItem('userId', authResponse.user.userId)
+      sessionStorage.setItem('user', JSON.stringify(authResponse.user))
 
       // Call parent callback with username
       onLogin(authResponse.user.username)
