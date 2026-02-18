@@ -85,13 +85,18 @@ export default function Integrations({ userId, apiUrl }: IntegrationsProps) {
   const startOAuth = async (provider: string) => {
     setAddingProvider(provider)
     try {
-      const response = await fetch(`${apiUrl}/api/${provider}/oauth/url?userId=${userId}`)
+      const response = await fetch(`${apiUrl}/api/integrations/${provider}/oauth/url?userId=${userId}`)
       const data = await response.json()
+      if (!response.ok) {
+        setError(data.error || `Failed to start ${provider} authentication`)
+        setAddingProvider(null)
+        return
+      }
       if (data.url) {
         window.location.href = data.url
       }
     } catch (err) {
-      setError(`Failed to start ${provider} authentication`)
+      setError(`Failed to connect to ${provider}. Please check that the server is running.`)
       setAddingProvider(null)
     }
   }
