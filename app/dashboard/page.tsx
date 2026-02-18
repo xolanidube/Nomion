@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import LoginForm from '@/components/LoginForm'
@@ -19,6 +19,14 @@ import UserManagement from '@/components/UserManagement'
 type ViewType = 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules' | 'approvals' | 'users'
 
 export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>}>
+      <DashboardContent />
+    </Suspense>
+  )
+}
+
+function DashboardContent() {
   const searchParams = useSearchParams()
   const trialPlan = searchParams.get('plan')
   const isTrial = searchParams.get('trial') === 'true'
