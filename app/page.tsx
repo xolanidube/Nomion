@@ -136,7 +136,7 @@ const pricingTiers = [
     description: 'Perfect for individual developers evaluating Nomion.',
     highlighted: false,
     features: [
-      '50 validations per month',
+      '15 validations per month',
       '1 RPA platform',
       'Core validation rules',
       'Community support',
@@ -161,7 +161,7 @@ const pricingTiers = [
       'Email support',
     ],
     cta: 'Start Free Trial',
-    ctaHref: '/dashboard',
+    ctaHref: '/dashboard?plan=team&trial=true',
   },
   {
     name: 'Business',
@@ -179,7 +179,7 @@ const pricingTiers = [
       'Priority support',
     ],
     cta: 'Start Free Trial',
-    ctaHref: '/dashboard',
+    ctaHref: '/dashboard?plan=business&trial=true',
   },
   {
     name: 'Enterprise',
@@ -224,7 +224,7 @@ const faqItems = [
   },
   {
     question: 'Is there a free plan?',
-    answer: 'Yes. The Free plan includes 50 validations per month on 1 platform with core validation rules and no credit card required. Team and Business plans include a 14-day free trial with unlimited validations across all platforms.',
+    answer: 'Yes. The Free plan includes 15 validations per month on 1 platform with core validation rules and no credit card required. Team ($49/user/month) and Business ($149/user/month) plans include a 14-day free trial with unlimited validations across all platforms — no credit card required to start.',
   },
   {
     question: 'How does enterprise pricing work?',

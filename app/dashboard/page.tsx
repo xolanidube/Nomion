@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import LoginForm from '@/components/LoginForm'
 import FileUpload from '@/components/FileUpload'
@@ -18,6 +19,10 @@ import UserManagement from '@/components/UserManagement'
 type ViewType = 'upload' | 'config' | 'history' | 'analytics' | 'integrations' | 'customrules' | 'approvals' | 'users'
 
 export default function Home() {
+  const searchParams = useSearchParams()
+  const trialPlan = searchParams.get('plan')
+  const isTrial = searchParams.get('trial') === 'true'
+
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [username, setUsername] = useState('')
   const [currentView, setCurrentView] = useState<ViewType>('upload')
@@ -160,7 +165,7 @@ export default function Home() {
 
   // Show login if not authenticated
   if (!isLoggedIn) {
-    return <LoginForm onLogin={handleLogin} />
+    return <LoginForm onLogin={handleLogin} trialPlan={isTrial ? trialPlan : null} />
   }
 
   return (

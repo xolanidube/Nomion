@@ -747,6 +747,8 @@ export interface RegisterRequest {
   email?: string
   password: string
   displayName?: string
+  plan?: string
+  trial?: boolean
 }
 
 export interface AuthResponse {

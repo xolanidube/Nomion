@@ -5,13 +5,18 @@ import { apiClient } from '@/lib/api'
 
 interface LoginFormProps {
   onLogin: (username: string) => void
+  trialPlan?: string | null
 }
 
-export default function LoginForm({ onLogin }: LoginFormProps) {
+export default function LoginForm({ onLogin, trialPlan }: LoginFormProps) {
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isRegisterMode, setIsRegisterMode] = useState(!!trialPlan)
+
+  const planLabel = trialPlan === 'business' ? 'Business' : trialPlan === 'team' ? 'Team' : null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,14 +32,35 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
       return
     }
 
+    if (isRegisterMode && !email.trim()) {
+      setError('Email is required')
+      return
+    }
+
+    if (isRegisterMode && password.length < 6) {
+      setError('Password must be at least 6 characters')
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      // Call real authentication API
-      const authResponse = await apiClient.login({
-        username: username.trim(),
-        password: password.trim(),
-      })
+      let authResponse
+
+      if (isRegisterMode) {
+        authResponse = await apiClient.register({
+          username: username.trim(),
+          email: email.trim(),
+          password: password.trim(),
+          plan: trialPlan || undefined,
+          trial: !!trialPlan,
+        })
+      } else {
+        authResponse = await apiClient.login({
+          username: username.trim(),
+          password: password.trim(),
+        })
+      }
 
       // Store tokens in sessionStorage (matches dashboard + component reads)
       sessionStorage.setItem('token', authResponse.accessToken)
@@ -46,7 +72,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
       // Call parent callback with username
       onLogin(authResponse.user.username)
     } catch (err: any) {
-      setError(err.message || 'Invalid username or password')
+      setError(err.message || (isRegisterMode ? 'Registration failed' : 'Invalid username or password'))
     } finally {
       setIsLoading(false)
     }
@@ -68,9 +94,23 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           </p>
         </div>
 
-        {/* Login Card */}
+        {/* Trial Banner */}
+        {planLabel && isRegisterMode && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-center">
+            <p className="text-sm font-semibold text-blue-800">
+              {planLabel} Plan &mdash; 14-Day Free Trial
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Unlimited validations across all platforms. No credit card required.
+            </p>
+          </div>
+        )}
+
+        {/* Login/Register Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Sign In</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+            {isRegisterMode ? 'Create Account' : 'Sign In'}
+          </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
@@ -84,10 +124,28 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent outline-none transition-colors text-gray-900"
-                placeholder="Enter your username"
+                placeholder="Choose a username"
                 disabled={isLoading}
               />
             </div>
+
+            {/* Email (register mode only) */}
+            {isRegisterMode && (
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent outline-none transition-colors text-gray-900"
+                  placeholder="Enter your email"
+                  disabled={isLoading}
+                />
+              </div>
+            )}
 
             {/* Password */}
             <div>
@@ -100,7 +158,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blueprism-blue focus:border-transparent outline-none transition-colors text-gray-900"
-                placeholder="Enter your password"
+                placeholder={isRegisterMode ? 'Create a password (min. 6 characters)' : 'Enter your password'}
                 disabled={isLoading}
               />
             </div>
@@ -140,45 +198,65 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  <span>Signing in...</span>
+                  <span>{isRegisterMode ? 'Creating account...' : 'Signing in...'}</span>
                 </>
               ) : (
-                <span>Sign In</span>
+                <span>
+                  {isRegisterMode
+                    ? planLabel
+                      ? `Start ${planLabel} Free Trial`
+                      : 'Create Account'
+                    : 'Sign In'}
+                </span>
               )}
             </button>
           </form>
 
           {/* SSO Login */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5205'
-                window.location.href = `${apiUrl}/api/sso/saml/login?returnUrl=${encodeURIComponent(window.location.origin + '/dashboard')}`
-              }}
-              className="w-full flex items-center justify-center space-x-2 py-3 px-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <span>Sign in with SSO</span>
-            </button>
-          </div>
+          {!isRegisterMode && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5205'
+                  window.location.href = `${apiUrl}/api/sso/saml/login?returnUrl=${encodeURIComponent(window.location.origin + '/dashboard')}`
+                }}
+                className="w-full flex items-center justify-center space-x-2 py-3 px-6 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span>Sign in with SSO</span>
+              </button>
+            </div>
+          )}
 
-          {/* Registration Link */}
+          {/* Toggle Sign In / Register */}
           <div className="mt-4 pt-4 border-t border-gray-200">
             <p className="text-sm text-gray-600 text-center">
-              Don&apos;t have an account?{' '}
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault()
-                  setError('Registration feature coming soon. Please contact your administrator for account creation.')
-                }}
-                className="text-blueprism-blue hover:text-blueprism-darkblue font-medium"
-              >
-                Request Access
-              </a>
+              {isRegisterMode ? (
+                <>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsRegisterMode(false)}
+                    className="text-blueprism-blue hover:text-blueprism-darkblue font-medium"
+                  >
+                    Sign In
+                  </button>
+                </>
+              ) : (
+                <>
+                  Don&apos;t have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsRegisterMode(true)}
+                    className="text-blueprism-blue hover:text-blueprism-darkblue font-medium"
+                  >
+                    Create Account
+                  </button>
+                </>
+              )}
             </p>
           </div>
         </div>
